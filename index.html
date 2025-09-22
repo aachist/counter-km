@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Учёт пройденного пути</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/favicon-192x192.png">
+</head>
+<body>
+  <h1>Пройденный путь</h1>
+
+  <!-- Экспорт / Импорт XML -->
+  <div class="xml-bar">
+    <button id="exportBtn">📥 Экспорт XML</button>
+    <label>📤 Импорт XML: <input type="file" id="importFile" accept=".xml"></label>
+  </div>
+  <hr>
+
+  <!-- Форма добавления -->
+  <h3>Добавить день</h3>
+  <div class="row">
+    <label>Дата: <input type="date" id="date"></label>
+    <label>Путь, км: <input type="number" id="km" step="0.01" min="0"></label>
+    <label>Время, ч: <input type="number" id="h" step="1" min="0"></label>
+    <label>мин: <input type="number" id="m" step="1" min="0" max="59"></label>
+    <label>Макс. перепад, м: <input type="number" id="drop" step="1"></label>
+    <button id="addBtn">+ Добавить</button>
+  </div>
+  <hr>
+
+  <!-- Таблица -->
+  <table id="dataTable"></table>
+
+  <!-- График дневного пути -->
+  <canvas id="chart" height="120"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
