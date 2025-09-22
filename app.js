@@ -1,6 +1,6 @@
 /* ---------- данные ---------- */
-let rows = [];                 // [{date, km, h, m, drop, speed, cum}, …]
-const dateId = d => d.replace(/-/g,'');
+let rows = [];                               // [{date,km,h,m,drop,speed,cum}, …]
+const keyOf = r => `${r.date}|${r.h}|${r.m}|${r.drop}`; // уник-ключ
 
 /* ---------- DOM ---------- */
 const $ = id => document.getElementById(id);
@@ -9,11 +9,11 @@ const addBtn = $('addBtn');
 const exportBtn = $('exportBtn');
 const importFile = $('importFile');
 
-/* ---------- инициализация ---------- */
+/* ---------- старт ---------- */
 buildTable();
 buildChart();
 
-/* ---------- слушатели ---------- */
+/* ---------- добавление вручную ---------- */
 addBtn.onclick = () => {
   const d = $('date').value,
         km = parseFloat($('km').value)||0,
@@ -31,6 +31,7 @@ addBtn.onclick = () => {
   buildChart();
 };
 
+/* ---------- экспорт архива ---------- */
 exportBtn.onclick = () => {
   const xml = ['<tracks>'];
   rows.forEach(r=>{
@@ -40,35 +41,50 @@ exportBtn.onclick = () => {
   const blob = new Blob([xml.join('\n')],{type:'application/xml'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'tracks.xml';
+  a.download = 'tracksArchive.xml';
   a.click();
 };
 
+/* ---------- импорт архива ---------- */
 importFile.onchange = e => {
   const file = e.target.files[0];
-  if(!file)return;
+  if(!file) return;
   const reader = new FileReader();
-  reader.onload = evt=>{
+  reader.onload = evt => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(evt.target.result,'application/xml');
-    const arr = [...doc.querySelectorAll('row')].map(n=>({
-      date : n.getAttribute('date'),
-      km   : parseFloat(n.getAttribute('km')),
-      h    : parseInt(n.getAttribute('h')),
-      m    : parseInt(n.getAttribute('m')),
-      drop : parseInt(n.getAttribute('drop')),
-      speed: parseFloat(n.getAttribute('km')) /
-             (parseInt(n.getAttribute('h')) + parseInt(n.getAttribute('m'))/60)
-    }));
-    rows = arr;
-    rebuildCum();
-    buildTable();
-    buildChart();
+    const existingKeys = new Set(rows.map(keyOf));
+    let added = 0;
+
+    [...doc.querySelectorAll('row')].forEach(n => {
+      const cand = {
+        date : n.getAttribute('date'),
+        km   : parseFloat(n.getAttribute('km')),
+        h    : parseInt(n.getAttribute('h')),
+        m    : parseInt(n.getAttribute('m')),
+        drop : parseInt(n.getAttribute('drop')),
+        speed: parseFloat(n.getAttribute('km')) /
+               (parseInt(n.getAttribute('h')) + parseInt(n.getAttribute('m'))/60)
+      };
+      if(!existingKeys.has(keyOf(cand))){
+        rows.push(cand);
+        existingKeys.add(keyOf(cand));
+        added++;
+      }
+    });
+
+    if(added){
+      rows.sort((a,b)=>a.date.localeCompare(b.date));
+      rebuildCum();
+      buildTable();
+      buildChart();
+    }
+    importFile.value = '';
   };
   reader.readAsText(file);
 };
 
-/* ---------- вспомогательные ---------- */
+/* ---------- служебные ---------- */
 function rebuildCum(){
   let s = 0;
   rows.forEach(r=>{s+=r.km; r.cum = s;});
@@ -76,15 +92,19 @@ function rebuildCum(){
 function buildTable(){
   let html = `<thead>
     <tr>
-      <th>Дата</th><th>Путь, км</th><th>Время</th>
-      <th>Ср. скорость, км/ч</th><th>Перепад, м</th><th>∑ км</th>
+      <th>Дата</th>
+      <th>Длина маршрута (км)</th>
+      <th>Время в пути</th>
+      <th>Ср. скорость, км/ч</th>
+      <th>Макс. перепад высот (м)</th>
+      <th>∑ км</th>
     </tr>
   </thead><tbody>`;
   rows.forEach(r=>{
     html += `<tr>
-      <td>${r.date}</td>
+      <td>${r.date.split('-').reverse().join('.')}</td>
       <td>${r.km.toFixed(2)}</td>
-      <td>${r.h} ч ${r.m} мин</td>
+      <td>${r.h}ч ${r.m}м</td>
       <td>${r.speed.toFixed(1)}</td>
       <td>${r.drop}</td>
       <td>${r.cum.toFixed(2)}</td>
@@ -94,7 +114,7 @@ function buildTable(){
   tbl.innerHTML = html;
 }
 function buildChart(){
-  const labels = rows.map(r=>r.date);
+  const labels = rows.map(r=>r.date.split('-').reverse().join('.'));
   const data   = rows.map(r=>r.km);
   const ctx = $('chart').getContext('2d');
   if(window.myChart) window.myChart.destroy();
